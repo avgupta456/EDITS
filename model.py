@@ -23,18 +23,19 @@ class EDITS(nn.Module):
         self.optimizer_A = torch.optim.RMSprop(self.fc.parameters(), lr=self.lr, eps=1e-04, weight_decay=args.weight_decay)
 
     def propagation_cat_new_filter(self, X_de, A_norm, layer_threshold):
-        A_norm = A_norm.half()
-        X_agg = X_de.half()
+        A_norm = A_norm#.half()
+        X_agg = X_de#.half()
         for i in range(layer_threshold):
             X_de = A_norm.mm(X_de)
             X_agg = torch.cat((X_agg, X_de), dim=1)
 
-        return X_agg.half()
+        return X_agg#.half()
 
     def forward(self, A, X):
         X_de = self.x_debaising(X)
         adj_new = self.adj_renew()
-        agg_con = self.propagation_cat_new_filter(X_de.half(), adj_new.half(), layer_threshold=self.layer_threshold).half()  # A_de or A
+        # agg_con = self.propagation_cat_new_filter(X_de.half(), adj_new.half(), layer_threshold=self.layer_threshold).half()  # A_de or A
+        agg_con = self.propagation_cat_new_filter(X_de, adj_new, layer_threshold=self.layer_threshold)
         D_pre = self.fc(agg_con)
         D_pre = self.dropout(D_pre)
         return adj_new, X_de, D_pre, D_pre, agg_con
@@ -138,7 +139,8 @@ class Adj_renew(nn.Module):
         self.reset_parameters()
 
     def fit(self, adj, lr):
-        estimator = EstimateAdj(adj, symmetric=False, device='cuda').to('cuda').half()
+        # estimator = EstimateAdj(adj, symmetric=False, device='cuda').to('cuda').half()
+        estimator = EstimateAdj(adj, symmetric=False)
         self.estimator = estimator
         self.optimizer_adj = optim.SGD(estimator.parameters(),
                               momentum=0.9, lr=lr)   # 0.005

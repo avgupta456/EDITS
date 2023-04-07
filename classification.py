@@ -16,10 +16,10 @@ from torch_geometric.utils import dropout_adj, convert
 from tqdm import tqdm
 import warnings
 warnings.filterwarnings('ignore')
-import ctypes
-ctypes.cdll.LoadLibrary('caffe2_nvrtc.dll')
+# import ctypes
+# ctypes.cdll.LoadLibrary('caffe2_nvrtc.dll')
 
-torch.cuda.set_device(0)
+# torch.cuda.set_device(0)
 
 # Training settings
 parser = argparse.ArgumentParser()
@@ -91,14 +91,17 @@ if args.preprocessed_using:
     metric_wd(features, A_debiased, sens, 0.9, 2)
     print("****************************************************************************")
     X_debiased = features.float()
-    edge_index = convert.from_scipy_sparse_matrix(A_debiased)[0].cuda()
+    # Noticed features are not normalized in original code
+    # X_debiased = (X_debiased - X_debiased.mean(axis=0)) / X_debiased.std(axis=0)
+    edge_index = convert.from_scipy_sparse_matrix(A_debiased)[0]# .cuda()
 else:
     print("****************************Before debiasing****************************")
     metric_wd(features, adj, sens, 0.9, 0)
     metric_wd(features, adj, sens, 0.9, 2)
     print("****************************************************************************")
     X_debiased = features.float()
-    edge_index = convert.from_scipy_sparse_matrix(adj)[0].cuda()
+    X_debiased = (X_debiased - X_debiased.mean(axis=0)) / X_debiased.std(axis=0)
+    edge_index = convert.from_scipy_sparse_matrix(adj)[0]# .cuda()
 
 
 def fair_metric(pred, labels, sens):
@@ -129,7 +132,7 @@ def train(epoch, pa, eq, test_f1, val_loss, test_auc):
     model.train()
     optimizer.zero_grad()
 
-    output = model(x=X_debiased, edge_index=torch.LongTensor(edge_index.cpu()).cuda())
+    output = model(x=X_debiased, edge_index=torch.LongTensor(edge_index.cpu()))  # .cuda())
     preds = (output.squeeze() > 0).type_as(labels)
     loss_train = F.binary_cross_entropy_with_logits(output[idx_train], labels[idx_train].unsqueeze(1).float())
     auc_roc_train = roc_auc_score(labels.cpu().numpy()[idx_train.cpu().numpy()], output.detach().cpu().numpy()[idx_train.cpu().numpy()])
@@ -139,19 +142,19 @@ def train(epoch, pa, eq, test_f1, val_loss, test_auc):
     _, _ = fair_metric(preds[idx_train.cpu().numpy()].cpu().numpy(), labels[idx_train.cpu().numpy()].cpu().numpy(), sens[idx_train.cpu().numpy()].cpu().numpy())
 
     model.eval()
-    output = model(x=X_debiased, edge_index=torch.LongTensor(edge_index.cpu()).cuda())
+    output = model(x=X_debiased, edge_index=torch.LongTensor(edge_index.cpu()))  # .cuda())
     preds = (output.squeeze() > 0).type_as(labels)
     loss_val = F.binary_cross_entropy_with_logits(output[idx_val], labels[idx_val].unsqueeze(1).float())
     auc_roc_val = roc_auc_score(labels.cpu().numpy()[idx_val.cpu().numpy()], output.detach().cpu().numpy()[idx_val.cpu().numpy()])
     f1_val = f1_score(labels[idx_val.cpu().numpy()].cpu().numpy(), preds[idx_val.cpu().numpy()].cpu().numpy())
-    # print('Epoch: {:04d}'.format(epoch + 1),
-    #       'loss_train: {:.4f}'.format(loss_train.item()),
-    #       'F1_train: {:.4f}'.format(f1_train),
-    #       'AUC_train: {:.4f}'.format(auc_roc_train),
-    #       'loss_val: {:.4f}'.format(loss_val.item()),
-    #       'F1_val: {:.4f}'.format(f1_val),
-    #       'AUC_val: {:.4f}'.format(auc_roc_val),
-    #       'time: {:.4f}s'.format(time.time() - t))
+    print('Epoch: {:04d}'.format(epoch + 1),
+          'loss_train: {:.4f}'.format(loss_train.item()),
+          'F1_train: {:.4f}'.format(f1_train),
+          'AUC_train: {:.4f}'.format(auc_roc_train),
+          'loss_val: {:.4f}'.format(loss_val.item()),
+          'F1_val: {:.4f}'.format(f1_val),
+          'AUC_val: {:.4f}'.format(auc_roc_val),
+          'time: {:.4f}s'.format(time.time() - t))
 
     if epoch < 15:
         return 0, 0, 0, 1e5, 0
@@ -165,7 +168,7 @@ def train(epoch, pa, eq, test_f1, val_loss, test_auc):
 
 def test(test_f1):
     model.eval()
-    output = model(x=X_debiased, edge_index=torch.LongTensor(edge_index.cpu()).cuda())
+    output = model(x=X_debiased, edge_index=torch.LongTensor(edge_index.cpu()))  # .cuda())
     preds = (output.squeeze() > 0).type_as(labels)
     loss_test = F.binary_cross_entropy_with_logits(output[idx_test], labels[idx_test].unsqueeze(1).float())
     auc_roc_test = roc_auc_score(labels.cpu().numpy()[idx_test.cpu().numpy()], output.detach().cpu().numpy()[idx_test.cpu().numpy()])
