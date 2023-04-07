@@ -92,7 +92,7 @@ if args.preprocessed_using:
     print("****************************************************************************")
     X_debiased = features.float()
     # Noticed features are not normalized in original code
-    # X_debiased = (X_debiased - X_debiased.mean(axis=0)) / X_debiased.std(axis=0)
+    X_debiased = (X_debiased - X_debiased.mean(axis=0)) / X_debiased.std(axis=0)
     edge_index = convert.from_scipy_sparse_matrix(A_debiased)[0]# .cuda()
 else:
     print("****************************Before debiasing****************************")
@@ -100,6 +100,7 @@ else:
     metric_wd(features, adj, sens, 0.9, 2)
     print("****************************************************************************")
     X_debiased = features.float()
+    # Noticed features are not normalized in original code
     X_debiased = (X_debiased - X_debiased.mean(axis=0)) / X_debiased.std(axis=0)
     edge_index = convert.from_scipy_sparse_matrix(adj)[0]# .cuda()
 
@@ -147,14 +148,14 @@ def train(epoch, pa, eq, test_f1, val_loss, test_auc):
     loss_val = F.binary_cross_entropy_with_logits(output[idx_val], labels[idx_val].unsqueeze(1).float())
     auc_roc_val = roc_auc_score(labels.cpu().numpy()[idx_val.cpu().numpy()], output.detach().cpu().numpy()[idx_val.cpu().numpy()])
     f1_val = f1_score(labels[idx_val.cpu().numpy()].cpu().numpy(), preds[idx_val.cpu().numpy()].cpu().numpy())
-    print('Epoch: {:04d}'.format(epoch + 1),
-          'loss_train: {:.4f}'.format(loss_train.item()),
-          'F1_train: {:.4f}'.format(f1_train),
-          'AUC_train: {:.4f}'.format(auc_roc_train),
-          'loss_val: {:.4f}'.format(loss_val.item()),
-          'F1_val: {:.4f}'.format(f1_val),
-          'AUC_val: {:.4f}'.format(auc_roc_val),
-          'time: {:.4f}s'.format(time.time() - t))
+    # print('Epoch: {:04d}'.format(epoch + 1),
+    #       'loss_train: {:.4f}'.format(loss_train.item()),
+    #       'F1_train: {:.4f}'.format(f1_train),
+    #       'AUC_train: {:.4f}'.format(auc_roc_train),
+    #       'loss_val: {:.4f}'.format(loss_val.item()),
+    #       'F1_val: {:.4f}'.format(f1_val),
+    #       'AUC_val: {:.4f}'.format(auc_roc_val),
+    #       'time: {:.4f}s'.format(time.time() - t))
 
     if epoch < 15:
         return 0, 0, 0, 1e5, 0
@@ -163,6 +164,8 @@ def train(epoch, pa, eq, test_f1, val_loss, test_auc):
         pa, eq, test_f1, test_auc = test(test_f1)
         # print("Parity of val: " + str(pa))
         # print("Equality of val: " + str(eq))
+        # print("New best val loss: " + str(val_loss))
+        # print(pa, eq, test_f1, val_loss, test_auc)
     return pa, eq, test_f1, val_loss, test_auc
 
 
