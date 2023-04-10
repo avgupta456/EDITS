@@ -28,7 +28,9 @@ def metric_wd(feature, adj_norm, flag, weakening_factor, max_hop):
         emd = wasserstein_distance(class_1, class_2)
         emd_distances.append(emd)
 
-    emd_distances = [0 if math.isnan(x) else x for x in emd_distances]
+    # NOTE: They included the sensitive attribute in the calculation of Wasserstein distance.
+    # Removing this greatly reduces the mean Wasserstein distance.
+    emd_distances = [0 if math.isnan(x) else x for x in emd_distances][1:]
 
     if max_hop == 0:
         print('Attribute bias : ')
